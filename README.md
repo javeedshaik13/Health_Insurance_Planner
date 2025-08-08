@@ -6,7 +6,7 @@ This project is an ML-powered web application that helps users identify the most
 - Age
 - Annual income
 - Number of dependents
-- Health condition (e.g., BMI, smoking status)
+- Health condition (i.e, BMI, smoking status)
 - Employment type
 
 The application includes:
