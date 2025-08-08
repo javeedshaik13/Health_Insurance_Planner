@@ -8,6 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'ml-files'))
 from prediction_helper import predict
 
 st.title('Health Insurance Cost Predictor')
+st.write("Welcome to the Health Insurance Cost Predictor! Fill in your details below to get an estimate.")
 
 categorical_options = {
     'Gender': ['Male', 'Female'],
