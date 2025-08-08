@@ -1,10 +1,14 @@
 import pandas as pd
 import joblib
+import os
 
-model_young = joblib.load("model_young.joblib")
-model_rest = joblib.load("model_rest.joblib")
-scaler_young = joblib.load("scaler_young.joblib")
-scaler_rest = joblib.load("scaler_rest.joblib")
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+model_young = joblib.load(os.path.join(script_dir, "model_young.joblib"))
+model_rest = joblib.load(os.path.join(script_dir, "model_rest.joblib"))
+scaler_young = joblib.load(os.path.join(script_dir, "scaler_young.joblib"))
+scaler_rest = joblib.load(os.path.join(script_dir, "scaler_rest.joblib"))
 
 def calculate_normalized_risk(medical_history):
     risk_scores = {
