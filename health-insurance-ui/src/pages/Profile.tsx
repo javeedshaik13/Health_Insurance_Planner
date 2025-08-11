@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,31 +7,99 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Save, Camera, Brain, Target, TrendingUp } from 'lucide-react';
+import { Edit, Save, Camera, Brain, Target, TrendingUp, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/config/api';
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1-234-567-8900',
-    age: '32',
-    height: '175',
-    weight: '70',
-    bloodType: 'O+',
-    emergencyContact: 'Jane Doe - +1-234-567-8901'
-  });
-
+  const [predictions, setPredictions] = useState<any[]>([]);
+  const [isLoadingPredictions, setIsLoadingPredictions] = useState(true);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const { user, updateProfile } = useAuth();
   const { toast } = useToast();
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile updated!",
-      description: "Your profile information has been saved successfully.",
-    });
+  const [profileData, setProfileData] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    phone: user?.phone || '',
+    age: user?.age?.toString() || '',
+    height: user?.height?.toString() || '',
+    weight: user?.weight?.toString() || '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '',
+        age: user.age?.toString() || '',
+        height: user.height?.toString() || '',
+        weight: user.weight?.toString() || '',
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchPredictions();
+  }, []);
+
+  const fetchPredictions = async () => {
+    try {
+      const response = await api.getPredictions();
+      if (response.success) {
+        setPredictions(response.predictions);
+      }
+    } catch (error) {
+      console.error('Failed to fetch predictions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load prediction history.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPredictions(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      await updateProfile({
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        phone: profileData.phone,
+        age: profileData.age ? parseInt(profileData.age) : undefined,
+        height: profileData.height ? parseFloat(profileData.height) : undefined,
+        weight: profileData.weight ? parseFloat(profileData.weight) : undefined,
+      });
+
+      setIsEditing(false);
+      toast({
+        title: "Profile updated!",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const getUserInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user?.username) {
+      return user.username.slice(0, 2).toUpperCase();
+    }
+    return 'U';
   };
 
   const healthStats = [
@@ -41,12 +109,7 @@ const Profile = () => {
     { label: 'Cholesterol', value: '180 mg/dL', status: 'Normal', color: 'bg-green-100 text-green-800' },
   ];
 
-  const recentActivities = [
-    { date: '2024-06-15', activity: 'Annual Health Checkup', result: 'Normal', doctor: 'Dr. Smith' },
-    { date: '2024-06-10', activity: 'Blood Test', result: 'Normal', doctor: 'Dr. Johnson' },
-    { date: '2024-06-05', activity: 'Dental Checkup', result: 'Clean', doctor: 'Dr. Brown' },
-    { date: '2024-05-30', activity: 'Eye Examination', result: 'Normal', doctor: 'Dr. Wilson' },
-  ];
+
 
   const aiSuggestions = [
     {
@@ -92,8 +155,15 @@ const Profile = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                    disabled={isUpdatingProfile}
                   >
-                    {isEditing ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                    {isUpdatingProfile ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isEditing ? (
+                      <Save className="w-4 h-4" />
+                    ) : (
+                      <Edit className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               </CardHeader>
@@ -102,8 +172,9 @@ const Profile = () => {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
                     <Avatar className="w-24 h-24">
-                      <AvatarImage src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" />
-                      <AvatarFallback>JD</AvatarFallback>
+                      <AvatarFallback className="text-2xl">
+                        {getUserInitials()}
+                      </AvatarFallback>
                     </Avatar>
                     {isEditing && (
                       <Button size="sm" className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0">
@@ -112,8 +183,12 @@ const Profile = () => {
                     )}
                   </div>
                   <div className="text-center">
-                    <h3 className="text-xl font-semibold">{profileData.firstName} {profileData.lastName}</h3>
-                    <p className="text-gray-600">{profileData.email}</p>
+                    <h3 className="text-xl font-semibold">
+                      {user?.firstName && user?.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.username}
+                    </h3>
+                    <p className="text-gray-600">{user?.email}</p>
                   </div>
                 </div>
 
@@ -140,15 +215,7 @@ const Profile = () => {
                     </div>
                   </div>
                   
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={profileData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
+
                   
                   <div>
                     <Label htmlFor="phone">Phone</Label>
@@ -190,25 +257,7 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="bloodType">Blood Type</Label>
-                    <Input
-                      id="bloodType"
-                      value={profileData.bloodType}
-                      onChange={(e) => handleInputChange('bloodType', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
 
-                  <div>
-                    <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                    <Input
-                      id="emergencyContact"
-                      value={profileData.emergencyContact}
-                      onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
-                      disabled={!isEditing}
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -271,28 +320,56 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {/* Recent Medical Activities */}
+            {/* Prediction History */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Medical Activities</CardTitle>
-                <CardDescription>Your medical history and checkups</CardDescription>
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="w-5 h-5" />
+                  <span>Prediction History</span>
+                </CardTitle>
+                <CardDescription>Your recent insurance cost predictions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{activity.activity}</h4>
-                        <p className="text-sm text-gray-600">
-                          {activity.date} • {activity.doctor}
-                        </p>
+                {isLoadingPredictions ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Loading predictions...</span>
+                  </div>
+                ) : predictions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No predictions yet. Visit the Home page to get your first prediction!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {predictions.slice(0, 5).map((prediction, index) => (
+                      <div key={prediction._id || index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <h4 className="font-semibold text-gray-900 flex items-center">
+                                <DollarSign className="w-4 h-4 mr-1" />
+                                ₹{prediction.prediction?.toLocaleString()}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {new Date(prediction.createdAt).toLocaleDateString()} •
+                                Age: {prediction.inputData?.age},
+                                Plan: {prediction.inputData?.insurancePlan}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="ml-4">
+                          {prediction.predictionType}
+                        </Badge>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">
-                        {activity.result}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                    {predictions.length > 5 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        Showing 5 most recent predictions out of {predictions.length} total
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

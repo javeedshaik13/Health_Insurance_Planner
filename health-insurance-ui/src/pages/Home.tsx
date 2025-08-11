@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { api, type PredictionRequest, type PredictionResponse } from '@/config/api';
 
 const Home = () => {
   const [formData, setFormData] = useState({
@@ -24,6 +25,7 @@ const Home = () => {
     medicalHistory: ''
   });
   const [prediction, setPrediction] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
@@ -33,24 +35,63 @@ const Home = () => {
     }));
   };
 
-  const handlePredict = () => {
-    // Simple prediction algorithm (in a real app, this would call an AI service)
-    const basePrice = 5000;
-    const ageMultiplier = parseInt(formData.age) * 50;
-    const dependantsMultiplier = parseInt(formData.dependants) * 2000;
-    const incomeMultiplier = parseInt(formData.income) * 0.1;
-    const riskMultiplier = parseInt(formData.geneticalRisk) * 500;
-    
-    const smokingMultiplier = formData.smokingStatus === 'smoking' ? 3000 : 0;
-    const planMultiplier = formData.insurancePlan === 'gold' ? 2000 : formData.insurancePlan === 'silver' ? 1000 : 0;
-    
-    const total = basePrice + ageMultiplier + dependantsMultiplier + incomeMultiplier + riskMultiplier + smokingMultiplier + planMultiplier;
-    
-    setPrediction(Math.round(total));
-    toast({
-      title: "Prediction Generated!",
-      description: "Your health insurance cost has been calculated based on your inputs.",
-    });
+  const handlePredict = async () => {
+    try {
+      setIsLoading(true);
+
+      // Validate required fields
+      if (!formData.age || !formData.dependants === undefined || !formData.income === undefined) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in Age, Number of Dependants, and Income fields.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Show loading state
+      toast({
+        title: "Calculating...",
+        description: "Getting your health insurance cost prediction.",
+      });
+
+      const requestData: PredictionRequest = {
+        age: formData.age,
+        dependants: formData.dependants,
+        income: formData.income,
+        geneticalRisk: formData.geneticalRisk,
+        insurancePlan: formData.insurancePlan,
+        employmentStatus: formData.employmentStatus,
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
+        bmiCategory: formData.bmiCategory,
+        smokingStatus: formData.smokingStatus,
+        region: formData.region,
+        medicalHistory: formData.medicalHistory
+      };
+
+      const data: PredictionResponse = await api.predict(requestData);
+
+      if (data.success) {
+        setPrediction(data.prediction);
+        toast({
+          title: "Prediction Generated!",
+          description: `Your estimated annual premium is ₹${data.prediction.toLocaleString()}${data.source ? ` (via ${data.source})` : ''}`,
+        });
+      } else {
+        throw new Error(data.error || 'Prediction failed');
+      }
+
+    } catch (error) {
+      console.error('Prediction error:', error);
+      toast({
+        title: "Prediction Failed",
+        description: "Unable to get prediction. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -267,8 +308,13 @@ const Home = () => {
                   </div>
                 </div>
 
-                <Button onClick={handlePredict} className="w-full" size="lg">
-                  Predict
+                <Button
+                  onClick={handlePredict}
+                  className="w-full"
+                  size="lg"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Calculating...' : 'Predict'}
                 </Button>
               </CardContent>
             </Card>
