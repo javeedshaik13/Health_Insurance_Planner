@@ -1,72 +1,204 @@
 
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Activity, Loader2 } from 'lucide-react';
+import { api } from '@/config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Dashboard = () => {
-  // Mock data for charts
-  const monthlyData = [
-    { month: 'Jan', cost: 4500, claims: 2 },
-    { month: 'Feb', cost: 4200, claims: 1 },
-    { month: 'Mar', cost: 4800, claims: 3 },
-    { month: 'Apr', cost: 4300, claims: 1 },
-    { month: 'May', cost: 4600, claims: 2 },
-    { month: 'Jun', cost: 4400, claims: 1 },
-  ];
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
-  const healthMetrics = [
-    { name: 'BMI', value: 23.5 },
-    { name: 'Blood Pressure', value: 120 },
-    { name: 'Heart Rate', value: 72 },
-    { name: 'Steps/Day', value: 8500 },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const riskDistribution = [
-    { name: 'Low Risk', value: 60, color: '#10b981' },
-    { name: 'Medium Risk', value: 30, color: '#f59e0b' },
-    { name: 'High Risk', value: 10, color: '#ef4444' },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.getDashboard();
+      if (response.success) {
+        setDashboardData(response.data);
+      } else {
+        setError('Failed to load dashboard data');
+      }
+    } catch (err: any) {
+      console.error('Dashboard fetch error:', err);
+      setError(err.message || 'Failed to load dashboard data');
+      // Use fallback data if API fails
+      setDashboardData(getFallbackData());
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  const getFallbackData = () => ({
+    currentPremium: 45200,
+    claimsThisYear: 3,
+    familyMembers: 4,
+    healthScore: 85,
+    monthlyTrend: [
+      { month: 'Jan', value: 4500 },
+      { month: 'Feb', value: 4200 },
+      { month: 'Mar', value: 4800 },
+      { month: 'Apr', value: 4300 },
+      { month: 'May', value: 4600 },
+      { month: 'Jun', value: 4400 },
+    ],
+    healthTrend: [
+      { month: 1, score: 82 },
+      { month: 2, score: 78 },
+      { month: 3, score: 85 },
+      { month: 4, score: 80 },
+      { month: 5, score: 88 },
+      { month: 6, score: 85 },
+    ],
+    premiumChange: '+2.5',
+    totalPredictions: 12
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Navigation />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const data = dashboardData || getFallbackData();
+
+  // Dynamic stats based on real data
   const stats = [
     {
       title: 'Current Premium',
-      value: '₹45,200',
-      change: '+2.5%',
+      value: `₹${data.currentPremium?.toLocaleString() || '0'}`,
+      change: `${data.premiumChange > 0 ? '+' : ''}${data.premiumChange}%`,
       icon: DollarSign,
-      color: 'text-green-600'
+      color: data.premiumChange >= 0 ? 'text-green-600' : 'text-red-600'
     },
     {
       title: 'Claims This Year',
-      value: '3',
-      change: '-1 from last year',
+      value: data.claimsThisYear?.toString() || '0',
+      change: data.claimsThisYear <= 2 ? 'Low activity' : 'Active year',
       icon: Activity,
       color: 'text-blue-600'
     },
     {
       title: 'Family Members',
-      value: '4',
+      value: data.familyMembers?.toString() || '1',
       change: 'All covered',
       icon: Users,
       color: 'text-purple-600'
     },
     {
       title: 'Health Score',
-      value: '85/100',
-      change: '+5 this month',
+      value: `${data.healthScore || 85}/100`,
+      change: `${data.healthScore >= 80 ? 'Excellent' : data.healthScore >= 70 ? 'Good' : 'Needs attention'}`,
       icon: TrendingUp,
-      color: 'text-green-600'
+      color: data.healthScore >= 80 ? 'text-green-600' : data.healthScore >= 70 ? 'text-yellow-600' : 'text-red-600'
     }
   ];
 
+  // Dynamic chart data
+  const monthlyData = data.monthlyTrend?.map((item: any) => ({
+    month: item.month,
+    cost: item.value,
+    claims: Math.floor(Math.random() * 3) + 1 // Mock claims data
+  })) || [];
+
+  const healthTrendData = data.healthTrend?.map((item: any) => ({
+    month: `Month ${item.month}`,
+    score: item.score
+  })) || [];
+
+  const riskDistribution = [
+    {
+      name: 'Low Risk',
+      value: data.healthScore >= 80 ? 70 : data.healthScore >= 70 ? 50 : 30,
+      color: '#10b981'
+    },
+    {
+      name: 'Medium Risk',
+      value: data.healthScore >= 80 ? 25 : data.healthScore >= 70 ? 35 : 40,
+      color: '#f59e0b'
+    },
+    {
+      name: 'High Risk',
+      value: data.healthScore >= 80 ? 5 : data.healthScore >= 70 ? 15 : 30,
+      color: '#ef4444'
+    },
+  ];
+
+  // Dynamic health metrics based on latest prediction
+  const latestPrediction = data.recentPredictions?.[0];
+  const healthMetrics = [
+    {
+      name: 'Age',
+      value: latestPrediction?.inputData?.age || user?.age || 'N/A'
+    },
+    {
+      name: 'BMI Category',
+      value: latestPrediction?.inputData?.bmiCategory || 'Normal'
+    },
+    {
+      name: 'Smoking Status',
+      value: latestPrediction?.inputData?.smokingStatus || 'Non-smoker'
+    },
+    {
+      name: 'Medical History',
+      value: latestPrediction?.inputData?.medicalHistory || 'No Disease'
+    },
+    {
+      name: 'Genetic Risk',
+      value: latestPrediction?.inputData?.geneticalRisk || 0
+    },
+    {
+      name: 'Total Predictions',
+      value: data.totalPredictions || 0
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Health Dashboard</h1>
-          <p className="text-gray-600">Track your health metrics and insurance analytics</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {user?.firstName ? `${user.firstName}'s Health Dashboard` : 'Health Dashboard'}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">Track your health metrics and insurance analytics</p>
+            {error && (
+              <p className="text-red-600 text-sm mt-2">
+                {error} - Showing fallback data
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={fetchDashboardData}
+            variant="outline"
+            disabled={isLoading}
+            className="flex items-center space-x-2"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
+            )}
+            <span>Refresh</span>
+          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -120,12 +252,12 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={monthlyData}>
+                <LineChart data={healthTrendData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis />
+                  <YAxis domain={[60, 100]} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="claims" stroke="#10b981" strokeWidth={2} />
+                  <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -195,39 +327,35 @@ const Dashboard = () => {
           {/* Recent Activity */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest health activities</CardDescription>
+              <CardTitle>Recent Predictions</CardTitle>
+              <CardDescription>Your latest insurance cost predictions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Annual checkup completed</p>
-                    <p className="text-xs text-gray-500">2 days ago</p>
+                {data.recentPredictions?.length > 0 ? (
+                  data.recentPredictions.slice(0, 4).map((prediction: any, index: number) => (
+                    <div key={prediction._id || index} className="flex items-center space-x-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        prediction.prediction > 50000 ? 'bg-red-500' :
+                        prediction.prediction > 30000 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          ₹{prediction.prediction?.toLocaleString()} prediction
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(prediction.createdAt).toLocaleDateString()} •
+                          Age: {prediction.inputData?.age}, Plan: {prediction.inputData?.insurancePlan}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">No predictions yet</p>
+                    <p className="text-xs text-gray-400">Make your first prediction to see data here</p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">BMI updated</p>
-                    <p className="text-xs text-gray-500">1 week ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Claim processed</p>
-                    <p className="text-xs text-gray-500">2 weeks ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Premium paid</p>
-                    <p className="text-xs text-gray-500">1 month ago</p>
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

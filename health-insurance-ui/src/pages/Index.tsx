@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Users, TrendingUp, Heart } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
   const features = [
     {
       icon: Shield,
@@ -42,20 +43,20 @@ const Index = () => {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <SignedOut>
-            <Button asChild variant="outline">
-              <Link to="/signin">Sign In</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/signup">Sign Up</Link>
-            </Button>
-          </SignedOut>
-          <SignedIn>
+          {!isAuthenticated ? (
+            <>
+              <Button asChild variant="outline">
+                <Link to="/signin">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/signup">Sign Up</Link>
+              </Button>
+            </>
+          ) : (
             <Button asChild variant="outline">
               <Link to="/home">Dashboard</Link>
             </Button>
-            <UserButton />
-          </SignedIn>
+          )}
         </div>
       </header>
 
@@ -82,19 +83,20 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex flex-col gap-3 min-[400px]:flex-row">
-                <SignedOut>
-                  <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700">
-                    <Link to="/signup">Get Started Free</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="lg">
-                    <Link to="/signin">Sign In</Link>
-                  </Button>
-                </SignedOut>
-                <SignedIn>
+                {!isAuthenticated ? (
+                  <>
+                    <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700">
+                      <Link to="/signup">Get Started Free</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="lg">
+                      <Link to="/signin">Sign In</Link>
+                    </Button>
+                  </>
+                ) : (
                   <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700">
                     <Link to="/home">Go to Dashboard</Link>
                   </Button>
-                </SignedIn>
+                )}
               </div>
             </div>
             
@@ -176,16 +178,15 @@ const Index = () => {
                 Join thousands of families who trust HealthPredict for their health insurance planning and peace of mind.
               </p>
             </div>
-            <SignedOut>
+            {!isAuthenticated ? (
               <Button asChild size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100 font-semibold">
                 <Link to="/signup">Start Your Free Journey</Link>
               </Button>
-            </SignedOut>
-            <SignedIn>
+            ) : (
               <Button asChild size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-gray-100 font-semibold">
                 <Link to="/home">Access Your Dashboard</Link>
               </Button>
-            </SignedIn>
+            )}
           </div>
         </div>
       </section>
