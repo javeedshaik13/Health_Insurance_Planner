@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:5000',
+  BASE_URL: 'https://health-insurance-planner-1twu.onrender.com',
   ENDPOINTS: {
     PREDICT_SIMULATED: '/api/predict',
     PREDICT_STREAMLIT: '/api/predict-streamlit',
